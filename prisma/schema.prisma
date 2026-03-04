@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RunType {
+  easy
+  tempo
+  intervals
+  long_run
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+}
+
+model User {
+  id               String             @id @default(uuid())
+  email            String             @unique
+  createdAt        DateTime           @default(now())
+  profile          Profile?
+  checkins         Checkin[]
+  runningSessions  RunningSession[]
+  strengthSessions StrengthSession[]
+  nutritionPlans   NutritionPlan[]
+}
+
+model Profile {
+  id               String  @id @default(uuid())
+  userId           String  @unique
+  age              Int
+  heightCm         Int
+  weightKg         Float
+  goalWeightKg     Float?
+  activityLevel    Float   @default(1.55)
+  runningExpected  Int     @default(3)
+  strengthExpected Int     @default(2)
+  preferences      Json?
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Checkin {
+  id           String   @id @default(uuid())
+  userId       String
+  date         DateTime
+  sleepHours   Float
+  hrv          Float
+  energy1to10  Int
+  soreness1to10 Int
+  hunger1to10  Int
+  stress1to10  Int
+  notes        String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model RunningSession {
+  id          String   @id @default(uuid())
+  userId      String
+  date        DateTime
+  type        RunType
+  durationMin Int
+  distanceKm  Float
+  avgHr       Int?
+  maxHr       Int?
+  avgPace     String?
+  rpe1to10    Int
+  notes       String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StrengthSession {
+  id           String      @id @default(uuid())
+  userId        String
+  date          DateTime
+  templateName  String
+  notes         String?
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sets          SetEntry[]
+}
+
+model Exercise {
+  id          String     @id @default(uuid())
+  name        String
+  muscleGroup String
+  sets        SetEntry[]
+}
+
+model SetEntry {
+  id                String          @id @default(uuid())
+  strengthSessionId String
+  exerciseId        String
+  setNumber         Int
+  reps              Int
+  weight            Float
+  rir               Float?
+  rpe               Float?
+  strengthSession   StrengthSession @relation(fields: [strengthSessionId], references: [id], onDelete: Cascade)
+  exercise          Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+}
+
+model Recipe {
+  id                String             @id @default(uuid())
+  name              String
+  servings          Int
+  instructions      String
+  tags              String[]
+  macrosJson        Json
+  recipeIngredients RecipeIngredient[]
+  meals             Meal[]
+}
+
+model Ingredient {
+  id                String             @id @default(uuid())
+  name              String             @unique
+  unit              String
+  recipeIngredients RecipeIngredient[]
+  groceryItems      GroceryItem[]
+}
+
+model RecipeIngredient {
+  id           String     @id @default(uuid())
+  recipeId     String
+  ingredientId String
+  qty          Float
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+}
+
+model NutritionPlan {
+  id            String        @id @default(uuid())
+  userId        String
+  weekStartDate DateTime
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals         Meal[]
+  groceryItems  GroceryItem[]
+
+  @@unique([userId, weekStartDate])
+}
+
+model Meal {
+  id              String        @id @default(uuid())
+  nutritionPlanId String
+  date            DateTime
+  mealType        MealType
+  recipeId        String
+  servings        Float
+  nutritionPlan   NutritionPlan @relation(fields: [nutritionPlanId], references: [id], onDelete: Cascade)
+  recipe          Recipe        @relation(fields: [recipeId], references: [id], onDelete: Restrict)
+}
+
+model GroceryItem {
+  id              String        @id @default(uuid())
+  nutritionPlanId String
+  ingredientId    String
+  totalQty        Float
+  unit            String
+  checked         Boolean       @default(false)
+  nutritionPlan   NutritionPlan @relation(fields: [nutritionPlanId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+}
